@@ -1,0 +1,449 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Control de Ventas e Inventario</title>
+    <style>
+        :root {
+            --primary: #2563eb;
+            --background: #f1f5f9;
+            --card: #ffffff;
+            --text: #1e293b;
+        }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--background);
+            color: var(--text);
+            margin: 0;
+            padding: 20px;
+        }
+        h1, h2 {
+            color: var(--primary);
+        }
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+        }
+        /* Tarjetas del Dashboard */
+        .dashboard {
+            display: flex;
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        .card {
+            background: var(--card);
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            flex: 1;
+            text-align: center;
+        }
+        .card h3 {
+            margin-top: 0;
+            font-size: 1.2rem;
+            color: #64748b;
+        }
+        .card .value {
+            font-size: 2rem;
+            font-weight: bold;
+            color: var(--primary);
+        }
+        /* Formularios y Tablas */
+        .section-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+        .section {
+            background: var(--card);
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        input, select, button {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #cbd5e1;
+            border-radius: 5px;
+            box-sizing: border-box;
+        }
+        button {
+            background-color: var(--primary);
+            color: white;
+            border: none;
+            cursor: pointer;
+            font-weight: bold;
+            margin-top: 10px;
+        }
+        button:hover {
+            background-color: #1d4ed8;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 15px;
+        }
+        th, td {
+            padding: 10px;
+            text-align: left;
+            border-bottom: 1px solid #e2e8f0;
+        }
+        th {
+            background-color: #f8fafc;
+        }
+        .error {
+            color: red;
+            font-size: 0.9rem;
+            margin-top: 5px;
+            display: none;
+        }
+        .success {
+            color: #15803d;
+            font-size: 0.9rem;
+            margin-top: 5px;
+            display: none;
+        }
+        .date-filters {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+        }
+        .chart-scroll {
+            overflow-x: auto;
+            margin-top: 12px;
+        }
+        #grafica-ventas {
+            display: block;
+            min-width: 600px;
+            width: 100%;
+            height: 260px;
+        }
+        .chart-grid { stroke: #e2e8f0; stroke-width: 1; }
+        .chart-label { fill: #64748b; font-size: 12px; }
+        .chart-bar { fill: #2563eb; }
+        .chart-bar.up { fill: #16a34a; }
+        .chart-bar.down { fill: #dc2626; }
+        .sales-summary {
+            display: flex;
+            justify-content: space-between;
+            gap: 12px;
+            padding: 10px 0;
+            font-weight: bold;
+        }
+        @media (max-width: 700px) {
+            .dashboard {
+                flex-direction: column;
+            }
+            .section-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>Gestor de Inventario y Ventas</h1>
+
+    <!-- Dashboard: Resumen -->
+    <div class="dashboard">
+        <div class="card">
+            <h3>Ganancia de este Mes</h3>
+            <div class="value">$<span id="ganancia-mes">0.00</span></div>
+        </div>
+        <div class="card">
+            <h3>Producto Más Vendido</h3>
+            <div class="value" id="producto-estrella">-</div>
+        </div>
+    </div>
+
+    <div class="section-grid">
+        <!-- Sección de Inventario -->
+        <div class="section">
+            <h2>📦 Agregar al Inventario</h2>
+            <div class="form-group">
+                <label>Nombre del Producto</label>
+                <input type="text" id="prod-nombre" placeholder="Ej. Camiseta">
+            </div>
+            <div class="form-group">
+                <label>Costo (Lo que te costó a ti)</label>
+                <input type="number" id="prod-costo" placeholder="0.00">
+            </div>
+            <div class="form-group">
+                <label>Precio de Venta</label>
+                <input type="number" id="prod-precio" placeholder="0.00">
+            </div>
+            <div class="form-group">
+                <label>Cantidad (Stock)</label>
+                <input type="number" id="prod-stock" placeholder="0">
+            </div>
+            <button onclick="agregarProducto()">Guardar Producto</button>
+
+            <h3 style="margin-top: 30px;">Inventario Actual</h3>
+            <div class="form-group">
+                <label for="buscar-inventario">Buscar perfume</label>
+                <input type="search" id="buscar-inventario" placeholder="Escribe el nombre o la marca...">
+            </div>
+            <div class="form-group">
+                <label for="filtro-tamano">Filtrar por tamaño</label>
+                <select id="filtro-tamano">
+                    <option value="todos">Todos los tamaños</option>
+                    <option value="30">30 ml</option>
+                    <option value="60">60 ml</option>
+                </select>
+            </div>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Producto</th>
+                        <th>Stock</th>
+                        <th>Precio</th>
+                    </tr>
+                </thead>
+                <tbody id="tabla-inventario">
+                    <!-- Los productos aparecerán aquí -->
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Sección de Ventas -->
+        <div class="section">
+            <h2>🛒 Registrar Venta</h2>
+            <div class="form-group">
+                <label>Seleccionar Producto</label>
+                <select id="venta-producto">
+                    <option value="">Seleccione un producto...</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>Cantidad Vendida</label>
+                <input type="number" id="venta-cantidad" placeholder="1">
+            </div>
+            <div class="form-group">
+                <label>Fecha</label>
+                <input type="date" id="venta-fecha">
+            </div>
+            <p id="error-venta" class="error">Stock insuficiente o datos inválidos.</p>
+            <button onclick="registrarVenta()">Registrar Venta</button>
+
+            <h3 style="margin-top: 30px;">Ventas y tendencia</h3>
+            <div class="date-filters">
+                <div class="form-group">
+                    <label for="ventas-desde">Desde</label>
+                    <input type="date" id="ventas-desde">
+                </div>
+                <div class="form-group">
+                    <label for="ventas-hasta">Hasta</label>
+                    <input type="date" id="ventas-hasta">
+                </div>
+            </div>
+            <button type="button" onclick="limpiarFiltroFechas()">Mostrar todas las fechas</button>
+            <p id="error-filtro-fechas" class="error" role="status"></p>
+            <div class="sales-summary">
+                <span>Unidades vendidas: <span id="unidades-periodo">0</span></span>
+                <span id="tendencia-ventas">Sin datos</span>
+            </div>
+            <div class="chart-scroll">
+                <svg id="grafica-ventas" role="img" aria-label="Gráfica diaria de unidades vendidas"></svg>
+            </div>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Fecha</th>
+                        <th>Producto</th>
+                        <th>Cant.</th>
+                        <th>Ganancia</th>
+                    </tr>
+                </thead>
+                <tbody id="tabla-ventas">
+                    <!-- Las ventas que coincidan con las fechas aparecerán aquí -->
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Ajustes manuales de stock -->
+        <div class="section">
+            <h2>🔄 Ajustar Inventario</h2>
+            <div class="form-group">
+                <label for="ajuste-producto">Seleccionar producto</label>
+                <select id="ajuste-producto">
+                    <option value="">Seleccione un producto...</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="ajuste-tipo">Movimiento</label>
+                <select id="ajuste-tipo">
+                    <option value="agregar">Agregar unidades al inventario</option>
+                    <option value="retirar">Retirar unidades del inventario</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="ajuste-cantidad">Cantidad</label>
+                <input type="number" id="ajuste-cantidad" min="1" step="1" placeholder="Ej. 5">
+            </div>
+            <p id="mensaje-ajuste" class="error" role="status"></p>
+            <button onclick="ajustarInventario()">Guardar ajuste</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Ignore invalid or unexpected data saved by an earlier session.
+    function cargarArreglo(clave) {
+        try {
+            const datos = JSON.parse(localStorage.getItem(clave));
+            return Array.isArray(datos) ? datos : [];
+        } catch {
+            return [];
+        }
+    }
+
+    let inventario = cargarArreglo('inventario');
+    let ventas = cargarArreglo('ventas');
+
+    // Catálogo inicial: cada fragancia se crea en 30 ml y 60 ml.
+    const catalogoPerfumes = [
+        // Esencias caballero
+        ['Caballero', 'AFNAN', '9 PM'],
+        ['Caballero', 'ANIMALE', 'Animale For Men'],
+        ['Caballero', 'ANTONIO BANDERAS', 'Blue Seduction; King of Seduction; The Golden Secret; The Secret'],
+        ['Caballero', 'ARMAF', 'Club de Nuit Intense Man; Odyssey Mandarin Sky; Club de Nuit Lionheart Man; Odyssey Mega Man'],
+        ['Caballero', 'AZZARO', 'Azzaro For Men'],
+        ['Caballero', 'BHARARA', 'Bharara King; Bharara Onyx'],
+        ['Caballero', 'BVLGARI', 'Aqva Pour Homme; Bvlgari Man In Black'],
+        ['Caballero', 'CALVIN KLEIN', 'Eternity For Men; Obsession For Men; CK One Shock For Him; Escape For Men; CK IN2U For Him'],
+        ['Caballero', 'CAROLINA HERRERA', '212 Heroes; 212 Men; 212 ***** Men; 212 VIP Men; 212 VIP Black; 212 VIP Men Wild Party; 212 VIP Black Red; 212 VIP Men Wins; Bad Boy; Bad Boy Dazzling Garden; CH Men; Herrera For Men'],
+        ['Caballero', 'CARTIER', 'Santos de Cartier; Aqua de Cartier'],
+        ['Caballero', 'CHANEL', 'Allure Homme Sport; Bleu de Chanel'],
+        ['Caballero', 'CLINIQUE', 'Happy For Men'],
+        ['Caballero', 'CREED', 'Aventus'],
+        ['Caballero', 'CRISTIANO RONALDO', 'Legacy; CR7'],
+        ['Caballero', 'DAVIDOFF', 'Cool Water'],
+        ['Caballero', 'DIESEL', 'Bad; Diesel Plus Plus; Only The Brave'],
+        ['Caballero', 'DIOR', 'Fahrenheit; Sauvage; Sauvage Elixir'],
+        ['Caballero', 'DOLCE&GABBANA', 'Dolce & Gabbana Pour Homme; Light Blue Pour Homme; K by Dolce & Gabbana'],
+        ['Caballero', 'ENRIQUE IGLESIAS', 'Adrenaline Night'],
+        ['Caballero', 'ÉSIKA', "D'Orsay; Winner Sport"],
+        ['Caballero', 'FERRARI', 'Ferrari Black; Scuderia Ferrari Red'],
+        ['Caballero', 'GILLES CANTUEL', 'Arsenal'],
+        ['Caballero', 'GIORGIO ARMANI', 'Acqua Di Giò; Acqua Di Giò Profumo; Armani Black Code; Emporio Armani White; Stronger With You; Stronger With You Leather'],
+        ['Caballero', 'GIVENCHY', 'Givenchy Pour Homme Blue Label; Pi'],
+        ['Caballero', 'GUCCI', 'Gucci Pour Homme; Gucci Guilty Intense Pour Homme'],
+        ['Caballero', 'GUESS', 'Guess Man'],
+        ['Caballero', 'HUGO BOSS', 'Boss; Boss Bottled Unlimited; Boss Element; Boss Orange For Men; Boss The Scent; Hugo; Hugo Energise; Hugo Red; Hugo Man Extreme; Boss In Motion; Boss Bottled Night'],
+        ['Caballero', 'ISSEY MIYAKE', "L'Eau D'Issey Pour Homme; L'Eau D'Issey Sport; Nuit D'Issey"],
+        ['Caballero', 'JEAN PAUL GAULTIER', 'Le Beau; Le Male; Le Male Elixir; Scandal Pour Homme; Ultra Male'],
+        ['Caballero', 'JESUS DEL POZO', 'Halloween Men'],
+        ['Caballero', 'LACOSTE', 'L.12.12 Blue; L.12.12 Green; L.12.12 White; L.12.12 Noir; Lacoste Red; Lacoste Essential'],
+        ['Caballero', 'LATTAFA PERFUMES', 'Asad; Asad Zanzibar; Asad Bourbon'],
+        ['Caballero', 'LOUIS VUITTON', 'Imagination'],
+        ['Caballero', 'MESSI', 'Messi Eau de Parfum'],
+        ['Caballero', 'MONTBLANC', 'Legend; Starwalker; Legend Night; Individuel'],
+        ['Caballero', 'MOSCHINO', 'Toy Boy'],
+        ['Caballero', 'NAUTICA', 'Nautica Voyage'],
+        ['Caballero', 'PACO RABANNE', "Black XS L'Aphrodisiaque; Black XS; Invictus; Invictus Intense; Invictus Aqua; Invictus Legend; Invictus Onyx Collector Edition; Invictus Victory; Invictus Victory Elixir; Invictus Platinum; One Million; One Million Elixir; One Million Golden Oud; One Million Lucky; One Million Prive; Phantom; Pure XS; Paco Rabanne Pour Homme; On Million Intense"],
+        ['Caballero', 'PARFUMS DE MARLY', 'Pegasus'],
+        ['Caballero', 'PARIS HILTON', 'Paris Hilton Men'],
+        ['Caballero', 'PERRY ELLIS', '360° For Men; 360° Red For Men'],
+        ['Caballero', 'RALPH LAUREN', 'Polo Red; Polo Blue; Polo Sport'],
+        ['Caballero', 'ROYALTY BY MALUMA', 'Onyx'],
+        ['Caballero', 'TED LAPIDUS', 'Lapidus Pour Homme'],
+        ['Caballero', 'TOMMY HILFIGER', 'Tommy'],
+        ['Caballero', 'VALENTINO', 'Valentino Uomo; Valentino Uomo Born In Roma'],
+        ['Caballero', 'VERSACE', 'Blue Jeans; Eros; Eros Energy; Eros Flame; Versace Pour Homme Dylan Blue'],
+        ['Caballero', 'VICTORINOX', 'Swiss Army; Swiss Army Altitude'],
+        ['Caballero', 'VIKTOR&ROLF', 'Spicebomb'],
+        ['Caballero', 'YANBAL', 'Ohm; Osadia; Adrenaline'],
+        // Esencias dama
+        ['Dama', 'ANTONIO BANDERAS', 'Blue Seduction'],
+        ['Dama', 'ARIANA GRANDE', 'Cloud; Cloud Pink; Sweet Like Candy; Thank U, Next'],
+        ['Dama', 'ARMAF', 'Yum Yum; Odyssey Candle'],
+        ['Dama', 'BATH AND BODY WORKS', 'Mad About You; Pink Chiffon; Wild Madagascar Vainilla'],
+        ['Dama', 'BRITNEY SPEARS', 'Fantasy; Fantasy In Bloom; Fantasy Midnight'],
+        ['Dama', 'BURBERRY', 'Burberry'],
+        ['Dama', 'BVLGARY', 'Omnia Crystallyne'],
+        ['Dama', 'CACHAREL', 'Amor Amor; Anais Anais'],
+        ['Dama', 'CALVIN KLEIN', 'Eternity; Euphoria'],
+        ['Dama', 'CAROLINA HERRERA', '212; 212 Heroes Forever Young; 212 *****; 212 VIP; 212 VIP Rosé; 212 VIP Rosé Elixir; 212 VIP Rosé Red; 212 VIP Wild Party; Carolina Herrera; CH; CH Sublime; Good Girl; Good Girl Blush; Good Girl Legère; Good Girl Supreme; Very Good Girl'],
+        ['Dama', 'CARTIER', 'Must The Cartier'],
+        ['Dama', 'CHANEL', 'Chanel No 5; Coco Chanel; Coco Mademoiselle; Chance'],
+        ['Dama', 'CREED', 'Aventus For Her'],
+        ['Dama', 'DIOR', "J'adore; Miss Dior"],
+        ['Dama', 'DOLCE&GABANNA', "Light Blue; L'Imperatrice; The One; Devotion"],
+        ['Dama', 'DONNA KARAN', 'DNKY Be Delicius'],
+        ['Dama', 'ESCADA', 'Sorbetto Rosso; Taj Sunset'],
+        ['Dama', 'GIORGIO ARMANI', 'Acqua Di Giogia; My Way'],
+        ['Dama', 'GIVENCHY', 'Ange Uo Demon; Organza'],
+        ['Dama', 'GUCCI', 'Gucci Guilty; Gucci Rush'],
+        ['Dama', 'GUESS', 'Guess; Guess Gold'],
+        ['Dama', 'HUGO BOSS', 'Boss The Scent For Her; Hugo Woman; Hugo XX'],
+        ['Dama', 'ILMIN PARFUMS', 'Il Roso'],
+        ['Dama', 'ISEEY MIYAKE', "L'Eau D'Issey Miyake"],
+        ['Dama', 'JEAN PAUL GAULTIER', 'Classique; Gaultier Divine; Scandal'],
+        ['Dama', 'JENNIFER LOPEZ', 'Live'],
+        ['Dama', 'JESUS DEL POZO', 'Halloween'],
+        ['Dama', 'KATY PERRY', 'Meaw'],
+        ['Dama', 'KENZO', 'Flower'],
+        ['Dama', 'KIM KARDASHIAN', 'BFF; Glam'],
+        ['Dama', 'LACOSTE', 'L.12.12 Pour Elle Sparkling; Touch of Pink'],
+        ['Dama', 'LADY GAGA', 'Fame'],
+        ['Dama', 'LANCOME', 'La Vie Est Belle'],
+        ['Dama', 'LATTAFA PERFUMES', "Ajwad; Mayar; Noble Blush Bade'e Al Oud; Yara; Yara Candy; Yara Moi; Yara Tous"],
+        ['Dama', 'MARC JACOBS', 'Perfect'],
+        ['Dama', 'MOSCHINO', 'Funny; Toy 2; Toy 2 Bubble Gum'],
+        ['Dama', 'NINA RICCI', 'Ricci Ricci'],
+        ['Dama', 'ORIENTICA PREMIUM', 'Orientica Velvet Gold'],
+        ['Dama', 'PACO RABANNE', 'Black XS For Her; Fame; Lady Million; Lady Million Lucky; Olimpea; Pure XS For Her; Ultraviolet'],
+        ['Dama', 'PARIS HILTON', 'Can Can; Can Can Burlesque; Dazzle; Gold Rush; Heiress; Paris Hilton; Passport In Paris'],
+        ['Dama', 'PERRY ELLIS', '360°; 360° Coral; 360° Red'],
+        ['Dama', 'PRADA', 'Prada Candy'],
+        ['Dama', 'RALPH LAUREN', 'Ralph; Ralph Love'],
+        ['Dama', 'SABRINA CARPENTER', 'Sweet Tooth'],
+        ['Dama', 'SALVATORE FERRAGAMO', 'Incanto Charms'],
+        ['Dama', 'SELENA GOMEZ', 'Selena Gomez'],
+        ['Dama', 'SHAKIRA', 'Elixir; Rock ! S'],
+        ['Dama', 'SOFIA VERGARA', 'Love; Sofia'],
+        ['Dama', 'TOMMY HILFIGER', 'Tommy Girl'],
+        ['Dama', 'VALENTINO', 'Valentino Donna Born In Roma; Valentino Donna Born In Roma Yellow Dream'],
+        ['Dama', 'VERSACE', 'Bright Crystal; Eros Femme; Yellow Diamond'],
+        ['Dama', "VICTORIA'S SECRET", 'Beauty Rush Juiced Berry; Bombshell; Chocolate; Coconut Passion; Love Spell; Mango & Hibiscus; Pink Soft & Dreamy; Pure Seduccion; Scandalous; Vainilla Lace'],
+        ['Dama', 'VICTORINOX', 'Swiss Army For Her'],
+        ['Dama', 'VIKTOR&ROLF', 'Bonbon'],
+        ['Dama', 'YANBAL', 'Celos'],
+        // Niños y niñas
+        ['Niños', 'NIÑOS (CABALLEROS)', 'Spider Man; Woody Toy Story; Capitan America'],
+        ['Niñas', 'NIÑAS (DAMAS)', 'Princesa Sofia; Barbie; Alegria Intensamente; Princesas de Disney'],
+        // Unisex
+        ['Unisex', 'AFNAN', '9 PM Rebel'],
+        ['Unisex', 'AL HARAMAIN', 'Amber Oud Gold Edition'],
+        ['Unisex', 'AL ZAAFARAN', 'Fakhar Al Oud'],
+        ['Unisex', 'BHARARA', 'Bharara Niche'],
+        ['Unisex', 'BOND NRO. 9', 'Bleecker Street'],
+        ['Unisex', 'CALVIN KLEIN', 'CK One'],
+        ['Unisex', 'CREED', 'Silver Montain'],
+        ['Unisex', 'LATTAFA PERFUMES', "Bade'e Al Oud Amethyst; Bade'e Al Oud For Glory; Bade'e Al Oud Honor & Glory; Bade'e Al Oud Sublime; Khamrah; Oud Lail Maleki; Oud Mood; Qaa'ed; Raghba"],
+        ['Unisex', 'LE LABO', 'Santal 33'],
+        ['Unisex', 'MAISON FRANCIS KURKDJIAN', 'Baccarat Rouge 540'],
+        ['Unisex', 'MONTALE', 'Arabians Tonka'],
+        ['Unisex', 'MOSCHINO', 'Toy 2 Pearl'],
+        ['Unisex', 'ORIENTICA PREMIUM', 'Orientica Amber Rouge; Oud Saffron; Orientica Royal Amber'],
+        ['Unisex', 'PARFUMS DE MARLY', 'Layton'],
+        ['Unisex', 'XERJOFF', 'Erba Pura']
+    ];
+
+    function cargarCatalogoInicial() {
+        const claveCarga = 'catalogo-perfumes-cargado-v1';
+        if (localStorage.getItem(claveCarga) === 'true') return;
+
+        const nombresExistentes = new Set(inventario.map(producto => producto.nombre));
+        let consecutivo = 0;
+        catalogoPerfumes.forEach
